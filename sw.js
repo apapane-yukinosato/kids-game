@@ -1,6 +1,6 @@
 /* こどもゲームズ：オフラインでも遊べるようにする Service Worker
    ゲームを追加・更新したら VERSION を上げ、新しいページを PRECACHE に足す。 */
-const VERSION='kids-v5';
+const VERSION='kids-v6';
 const PRECACHE=['./','index.html','manifest.webmanifest','icon-180.png','icon-512.png','tacchi/','tacchi/index.html'];
 
 self.addEventListener('install',e=>{
