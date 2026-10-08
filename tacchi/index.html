@@ -262,8 +262,6 @@ function drawApple(){
 function drawBubble(){
   sky('#FFE8F4','#E0F0FF'); cloud(40,80,1.2); cloud(220,130,.9);
   g.fillStyle='#9AD87A'; g.fillRect(0,GROUND,W,H-GROUND);
-  // a kid blowing bubbles
-  emoji('🧒',60,GROUND-30,54);
   for(const b of S.objs){ const gr=g.createRadialGradient(b.x-b.r*.3,b.y-b.r*.3,b.r*.1,b.x,b.y,b.r); gr.addColorStop(0,'rgba(255,255,255,.9)'); gr.addColorStop(.5,'rgba(180,230,255,.25)'); gr.addColorStop(.85,`hsla(${(S.t*80+b.ph*60)%360},90%,70%,.45)`); gr.addColorStop(1,'rgba(255,255,255,.7)');
     g.fillStyle=gr; g.beginPath(); g.arc(b.x,b.y,b.r,0,7); g.fill(); g.strokeStyle='rgba(255,255,255,.8)'; g.lineWidth=1.5; g.stroke(); }
 }
