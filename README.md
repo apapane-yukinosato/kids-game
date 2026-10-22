@@ -7,6 +7,16 @@
 
 | | ゲーム | URL | 内容 |
 |---|---|---|---|
+| 🫧 | ぷちぷち | https://apapane-yukinosato.github.io/kids-game/puchipuchi/ | ぷちぷちをゆびでつぶす。さわるとぷちっ、なぞるとまとめてつぶれる。ぜんぶつぶすと「やったね！」。音は出ません。 |
+| 🖍️ | おえかき | https://apapane-yukinosato.github.io/kids-game/oekaki/ | ゆびでなぞると、にじいろの線がひける。右下のほうきでぜんぶ消せる。音は出ません。 |
+| 🧽 | ごしごし | https://apapane-yukinosato.github.io/kids-game/goshigoshi/ | くもったまどをゆびでごしごし。だれがかくれているかな？音は出ません。 |
+| 🔶 | かたちあわせ | https://apapane-yukinosato.github.io/kids-game/katachi/ | まる・しかく・さんかく…同じかたちのあなに、ゆびで運んではめるパズル。音は出ません。 |
+| 🧱 | つみき | https://apapane-yukinosato.github.io/kids-game/tsumiki/ | さわるたびに、つみきがポトン。たかーくつみあげよう。音は出ません。 |
+| 🌃 | ほたる | https://apapane-yukinosato.github.io/kids-game/hotaru/ | よるのかわべで、ゆびにほたるがあつまってくる。ふんわり光ってきれい。音は出ません。 |
+| 🥕 | ぬいてみよう | https://apapane-yukinosato.github.io/kids-game/nuite/ | はたけのにんじんを、ゆびで上にひっぱってスポン！かごにいれよう。音は出ません。 |
+| 🚂 | でんしゃ | https://apapane-yukinosato.github.io/kids-game/densha/ | さわるたびに、でんしゃにしゃりょうがつながる。どんどん長くなるよ。音は出ません。 |
+| ⚽ | ボールあそび | https://apapane-yukinosato.github.io/kids-game/ball/ | さわったところから、ボールがぽーんと落ちてはずむ。ボールをさわるとジャンプ！音は出ません。 |
+| 🏠 | おうちのあかり | https://apapane-yukinosato.github.io/kids-game/akari/ | よるのおうちのまどをさわると、ぱっとあかりがついて、どうぶつがこんにちは。音は出ません。 |
 | 🍎 | タッチであそぼ | https://apapane-yukinosato.github.io/kids-game/tacchi/ | 1〜3さいの子向けのタッチあそび12面（りんご・しゃぼんだま・たまご・おさかな・のりもの・はなび・どうぶつ・おはな・ふうせん・にじ・ゆきだるま・もぐもぐ）。どこをさわっても大丈夫。ダブルタップでズームしない。音は出ません（静かな場所向け）。 |
 
 ## オフラインで遊ぶ（iPhone）
@@ -21,5 +31,15 @@ Safari でこのページを開き、「共有」→「ホーム画面に追加�
 ├── manifest.webmanifest … ホーム画面アプリの設定
 ├── sw.js          … オフライン対応（Service Worker）
 ├── LICENSE
+├── puchipuchi/    … ぷちぷち
+├── oekaki/        … おえかき
+├── goshigoshi/    … ごしごし
+├── katachi/       … かたちあわせ
+├── tsumiki/       … つみき
+├── hotaru/        … ほたる
+├── nuite/         … ぬいてみよう
+├── densha/        … でんしゃ
+├── ball/          … ボールあそび
+├── akari/         … おうちのあかり
 └── tacchi/        … タッチであそぼ
 ```
