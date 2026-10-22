@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="はたけの野菜を、ゆびでつかんで上にひっぱってぬく。ぜんぶぬくと「やったね！」。音は出ません。">
+<title>ぬいてみよう</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+:root{--bg:#FFF8EC;--ink:#4A3A2A;--mute:#8A7A6A}
+*{box-sizing:border-box;touch-action:manipulation}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink)}
+body{font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#app{height:100vh;height:100dvh;display:flex;flex-direction:column;padding:calc(6px + env(safe-area-inset-top,0px)) 8px calc(8px + env(safe-area-inset-bottom,0px))}
+#top{display:flex;align-items:center;gap:8px;margin-bottom:6px;min-height:30px}
+#top a{color:var(--mute);text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap;padding:6px 4px;width:52px}
+#top h1{flex:1;margin:0;text-align:center;font-size:17px;font-weight:800}
+#top .sp{width:52px}
+#wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#cv{display:block;border-radius:18px;touch-action:none;box-shadow:0 4px 0 rgba(0,0,0,.12)}
+</style>
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="icon" type="image/png" href="../icon-180.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#232B4E">
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <a href="../">← 一覧</a>
+    <h1>ぬいてみよう</h1>
+    <span class="sp"></span>
+  </div>
+  <div id="wrap"><canvas id="cv" width="360" height="540" aria-label="ぬいてみよう"></canvas></div>
+</div>
+<script>
+'use strict';
+const W=360,H=540;
+const $=id=>document.getElementById(id);
+const cv=$('cv'), g=cv.getContext('2d');
+const rnd=()=>Math.random(), pick=a=>a[Math.floor(rnd()*a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function fit(){ const b=$('wrap'), s=Math.min(b.clientWidth/W,b.clientHeight/H); if(!(s>0)) return; const d=Math.min(window.devicePixelRatio||1,3);
+  cv.style.width=Math.floor(W*s)+'px'; cv.style.height=Math.floor(H*s)+'px'; cv.width=Math.round(W*s*d); cv.height=Math.round(H*s*d); g.setTransform(cv.width/W,0,0,cv.height/H,0,0); }
+addEventListener('resize',fit); addEventListener('orientationchange',fit);
+
+/* ===== no zoom ===== */
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{ const now=Date.now(); if(now-lastTouchEnd<350&&e.cancelable&&!(e.target.closest&&e.target.closest('a,button'))) e.preventDefault(); lastTouchEnd=now; },{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+for(const ev of ['gesturestart','gesturechange','gestureend']) document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{ if(e.touches.length>1) e.preventDefault(); },{passive:false});
+
+/* ===== drawing helpers ===== */
+function rr(x,y,w,h,r){ r=Math.min(r,w/2,h/2); g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+function sky(c1,c2){ const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,c1); gr.addColorStop(1,c2); g.fillStyle=gr; g.fillRect(0,0,W,H); }
+function cloud(x,y,s,a=.95){ g.fillStyle=`rgba(255,255,255,${a})`; g.beginPath(); g.arc(x,y,18*s,0,7); g.arc(x+20*s,y-8*s,22*s,0,7); g.arc(x+42*s,y,18*s,0,7); g.fill(); }
+function emoji(e,x,y,s){ g.fillStyle='#000'; g.font=`${s}px sans-serif`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(e,x,y); g.textBaseline='alphabetic'; }
+function starPath(x,y,r){ g.beginPath(); for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rad=i%2?r*.45:r; g.lineTo(x+Math.cos(a)*rad,y+Math.sin(a)*rad); } g.closePath(); }
+function hint(x,y){ g.globalAlpha=.5+.5*Math.sin(T*5); emoji('👆',x,y,34); g.globalAlpha=1; }
+
+/* ===== particles & cheer ===== */
+const parts=[]; let T=0, cheerT=0;
+function burst(x,y,n,cols){ for(let k=0;k<n;k++){ const a=rnd()*6.283, s=60+rnd()*160; parts.push({k:'dot',x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,t:0,life:1,col:pick(cols)}); } }
+function sparkle(x,y){ for(let k=0;k<6;k++){ const a=rnd()*6.283; parts.push({k:'star',x,y,vx:Math.cos(a)*70,vy:Math.sin(a)*70,t:0,life:1,col:pick(['#FFD23A','#FF9AB8','#9AD8FF'])}); } }
+function ring(x,y,col){ parts.push({k:'ring',x,y,t:0,life:.5,col:col||'rgba(255,255,255,.9)'}); }
+function puff(x,y){ parts.push({k:'puff',x,y,vx:-10+rnd()*20,vy:-40-rnd()*20,t:0,life:1.2}); }
+function confetti(){ for(let k=0;k<60;k++) parts.push({k:'conf',x:rnd()*W,y:-10-rnd()*80,vx:(rnd()-.5)*40,vy:80+rnd()*120,t:0,life:3.5,col:pick(['#FF5A7A','#FFD23A','#4AC0E0','#7AD05A','#B07AF0','#FF9A3A']),rot:rnd()*6,vr:(rnd()-.5)*8}); }
+function cheer(){ if(cheerT>0) return; cheerT=2.8; confetti(); }
+function stepParts(dt){ for(const p of parts){ p.t+=dt;
+    if(p.k==='dot'){ p.vy+=300*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+    else if(p.k==='star'||p.k==='puff'){ p.x+=p.vx*dt; p.y+=p.vy*dt; }
+    else if(p.k==='conf'){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.rot+=p.vr*dt; } }
+  for(let i=parts.length-1;i>=0;i--) if(parts[i].t>parts[i].life) parts.splice(i,1); }
+function drawParts(){ for(const p of parts){ const k=Math.max(0,1-p.t/p.life);
+    if(p.k==='dot'){ g.globalAlpha=k; g.fillStyle=p.col; g.beginPath(); g.arc(p.x,p.y,4,0,7); g.fill(); }
+    else if(p.k==='star'){ g.globalAlpha=k; g.fillStyle=p.col; starPath(p.x,p.y,4+8*k); g.fill(); }
+    else if(p.k==='ring'){ g.globalAlpha=k; g.strokeStyle=p.col; g.lineWidth=4; g.beginPath(); g.arc(p.x,p.y,10+p.t*80,0,7); g.stroke(); }
+    else if(p.k==='conf'){ g.globalAlpha=1; g.save(); g.translate(p.x,p.y); g.rotate(p.rot); g.fillStyle=p.col; g.fillRect(-4,-2,8,4); g.restore(); }
+    else if(p.k==='puff'){ g.globalAlpha=k*.7; g.fillStyle='#FFFFFF'; g.beginPath(); g.arc(p.x,p.y,8+p.t*22,0,7); g.fill(); } }
+  g.globalAlpha=1; }
+function drawCheer(){ if(cheerT<=0) return; const k=Math.min(1,(2.8-cheerT)*3); g.save(); g.translate(W/2,H/2-20); g.scale(.5+k*.5,.5+k*.5); emoji('🎉',0,-40,80);
+  g.fillStyle='#FF5A7A'; g.font='800 40px "M PLUS Rounded 1c",sans-serif'; g.textAlign='center'; g.lineWidth=8; g.lineJoin='round'; g.strokeStyle='#FFF'; g.strokeText('やったね！',0,40); g.fillText('やったね！',0,40); g.restore(); }
+
+/* ===== input (pointer events; works for touch and mouse) ===== */
+const ptrs=new Map();
+function pt(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H}; }
+cv.addEventListener('pointerdown',e=>{ e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} const p=pt(e);
+  if(cheerT>0){ sparkle(p.x,p.y); return; } ptrs.set(e.pointerId,p); down(p.x,p.y,e.pointerId); });
+cv.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId)) return; e.preventDefault(); const p=pt(e); ptrs.set(e.pointerId,p); move(p.x,p.y,e.pointerId); });
+function endPtr(e){ if(!ptrs.has(e.pointerId)) return; const p=pt(e); ptrs.delete(e.pointerId); up(p.x,p.y,e.pointerId); }
+cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ===== loop ===== */
+function tick(dt){ T+=dt; update(dt); stepParts(dt);
+  if(cheerT>0){ cheerT-=dt; if(cheerT<=0){ cheerT=0; parts.length=0; ptrs.clear(); init(); } }
+  draw(); drawParts(); drawCheer(); }
+let last=performance.now();
+function frame(now){ const dt=Math.min(.05,(now-last)/1000); last=now; tick(dt); requestAnimationFrame(frame); }
+
+/* ================= game: ぬいてみよう ================= */
+const PULL=64, MAXP=96, ES=78, BASKET={x:180,y:506};
+const EM=['🥕','🥔','🧅','🍠','🥕','🧅'];
+const S={veg:[],drag:null,got:[],bp:0};
+function init(){ S.veg=[]; S.got=[]; S.drag=null; S.bp=0;
+  EM.forEach((e,i)=>S.veg.push({x:[70,180,290][i%3],gy:[290,430][Math.floor(i/3)],e,p:0,st:'in',t:0,sx:0,sy:0,rot:0})); }
+function down(x,y,id){ let best=null,bd=1e9;
+  for(const v of S.veg){ if(v.st!=='in') continue; const cy=v.gy-20-v.p;
+    if(Math.abs(x-v.x)<46&&y>cy-52&&y<v.gy+24){ const d=Math.hypot(x-v.x,y-cy); if(d<bd){ bd=d; best=v; } } }
+  if(best) S.drag={v:best,sy:y+best.p,id}; else sparkle(x,y); }
+function move(x,y,id){ if(!S.drag||S.drag.id!==id) return; const v=S.drag.v; v.p=clamp(S.drag.sy-y,0,MAXP);
+  if(v.p>=PULL){ v.st='fly'; v.t=0; v.sx=v.x; v.sy=v.gy-20-v.p; S.drag=null; burst(v.x,v.gy,14,['#8B5A2B','#A9703F','#6B4423']); } }
+function up(x,y,id){ if(S.drag&&S.drag.id===id) S.drag=null; }
+function update(dt){ if(S.bp>0) S.bp=Math.max(0,S.bp-dt*3);
+  for(const v of S.veg){
+    if(v.st==='in'){ if(!(S.drag&&S.drag.v===v)) v.p=Math.max(0,v.p-dt*240); }
+    else if(v.st==='fly'){ v.t+=dt/.9; v.rot+=dt*9; if(v.t>=1){ v.st='gone'; S.got.push(v.e); S.bp=1; sparkle(BASKET.x,BASKET.y-20); if(S.veg.every(q=>q.st==='gone')) cheer(); } } } }
+function flyPos(v){ const k=Math.min(1,v.t), e=k*k*(3-2*k); return {x:v.sx+(BASKET.x-v.sx)*e, y:v.sy+(BASKET.y-30-v.sy)*e-Math.sin(k*Math.PI)*130}; }
+function draw(){
+  sky('#CFEFFF','#EAF8E0'); cloud(40,70,1.1); cloud(230,110,.9,.85);
+  g.fillStyle='#A8DC8A'; g.fillRect(0,230,W,H-230);
+  for(const gy of [290,430]){ g.fillStyle='#B27A46'; g.fillRect(0,gy,W,44); g.fillStyle='#8DCB6C'; g.fillRect(0,gy-6,W,8); }
+  for(const v of S.veg){ if(v.st==='fly') continue;
+    g.fillStyle='#6E4423'; g.beginPath(); g.ellipse(v.x,v.gy+3,42,10,0,0,7); g.fill();
+    if(v.st==='in'){ g.save(); g.beginPath(); g.rect(v.x-60,0,120,v.gy+2); g.clip(); const sh=S.drag&&S.drag.v===v?Math.sin(T*40)*1.5:0; emoji(v.e,v.x+sh,v.gy-20-v.p,ES); g.restore(); }
+    g.fillStyle='rgba(168,110,60,.95)'; g.beginPath(); g.ellipse(v.x-30,v.gy+4,14,6,0,0,7); g.ellipse(v.x+31,v.gy+4,14,6,0,0,7); g.fill(); }
+  for(const v of S.veg){ if(v.st!=='fly') continue; const p=flyPos(v); g.save(); g.translate(p.x,p.y); g.rotate(Math.sin(v.rot)*.6); emoji(v.e,0,0,ES); g.restore(); }
+  emoji('🧺',BASKET.x,BASKET.y+(S.bp>0?-Math.sin(S.bp*Math.PI)*8:0),70);
+  S.got.forEach((e,i)=>emoji(e,BASKET.x-62+i*25,BASKET.y-34,22));
+  if(S.got.length===0&&!S.drag&&!S.veg.some(v=>v.p>0)){ const o=(T*50)%40; g.globalAlpha=1-o/40; emoji('👆',S.veg[0].x+14,S.veg[0].gy+10-o,30); g.globalAlpha=1; }
+}
+
+window.__nuite={ get S(){ return S; }, get cheering(){ return cheerT>0; }, step(dt=1/60){ tick(dt); }, down:(x,y)=>{ if(cheerT>0) return; down(x,y,1); }, move:(x,y)=>move(x,y,1), up:(x,y)=>up(x,y,1), init };
+fit(); init(); requestAnimationFrame(frame);
+</script>
+<!-- swipe guard: an edge swipe or a single "back" does not leave the game (a second back within 2.5s does) -->
+<style>html,body{overscroll-behavior:none}#swipeGuardToast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483647;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;background:rgba(20,20,20,.86);color:#fff;font:700 14px/1.4 "Hiragino Sans","Yu Gothic",system-ui,sans-serif;padding:10px 16px;border-radius:14px;text-align:center;pointer-events:none;opacity:0;transition:opacity .25s}</style>
+<script>
+(()=>{
+  const EDGE=24;
+  // iPhone Safari: a touch that starts at the left/right edge would become the "go back" swipe
+  addEventListener('touchstart',e=>{
+    const t=e.touches[0]; if(!t||e.touches.length>1) return;
+    if(t.clientX>EDGE&&t.clientX<innerWidth-EDGE) return;
+    if(e.target.closest&&e.target.closest('a,button,input,select,textarea,label,[role=button]')) return;
+    e.preventDefault();
+  },{passive:false});
+  // back gesture / back button: the first one stays in the game, a second one within 2.5s leaves
+  let armed=false, lastBack=0, hideT=0;
+  const arm=()=>{ if(armed) return; armed=true; try{ history.pushState({swipeGuard:1},''); }catch(_){} };
+  addEventListener('pointerdown',arm,true); addEventListener('keydown',arm,true);
+  addEventListener('popstate',()=>{
+    if(!armed) return;
+    const now=Date.now();
+    if(now-lastBack<2500){ history.back(); return; }
+    lastBack=now; try{ history.pushState({swipeGuard:1},''); }catch(_){}
+    let el=document.getElementById('swipeGuardToast');
+    if(!el){ el=document.createElement('div'); el.id='swipeGuardToast'; el.setAttribute('role','status'); document.body.appendChild(el); }
+    el.textContent='ゲームを続けます（もう一度もどる操作をすると、ゲームをやめます）';
+    el.style.opacity=1; clearTimeout(hideT); hideT=setTimeout(()=>{ el.style.opacity=0; },2500);
+  });
+})();
+</script>
+<script>if("serviceWorker" in navigator){ addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{})); }</script>
+</body>
+</html>
