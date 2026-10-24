@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="画面ぜんぶがおえかきのキャンバス。ゆびでなぞると、にじいろの線がかける。音は出ません。">
+<title>ぜんがめんおえかき</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+:root{--bg:#FFFDF6;--ink:#4A3A2A;--mute:#8A7A6A;--line:#F0C8A0;--p:0}
+*{box-sizing:border-box;touch-action:manipulation}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink)}
+body{font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#cv{position:fixed;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
+#back{position:fixed;z-index:2;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:rgba(255,255,255,.88);color:var(--mute);text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
+#clr{position:fixed;z-index:2;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:56px;height:56px;padding:4px;border:0;border-radius:50%;cursor:pointer;background:conic-gradient(#FF7A9A calc(var(--p) * 360deg),var(--line) 0);touch-action:none}
+#clr span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:#fff;font-size:26px;line-height:1}
+#hint{position:fixed;z-index:1;left:50%;top:50%;transform:translate(-50%,-50%);font-size:64px;pointer-events:none;animation:pulse 1.2s ease-in-out infinite}
+#hint[hidden]{display:none}
+@keyframes pulse{50%{opacity:.35;transform:translate(-50%,-60%)}}
+</style>
+<link rel="apple-touch-icon" href="../icon-180.png">
+<link rel="icon" type="image/png" href="../icon-180.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFFDF6">
+</head>
+<body>
+<canvas id="cv" aria-label="おえかき"></canvas>
+<a id="back" href="../">← 一覧</a>
+<button id="clr" type="button" aria-label="ぜんぶけす（ながおし）"><span>🧹</span></button>
+<div id="hint" aria-hidden="true">👆</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const cv=$('cv'), g=cv.getContext('2d');
+const dpr=Math.min(window.devicePixelRatio||1,2);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const HOLD=.9;   // 「けす」ボタンは、この秒数ながおししたときだけ消える（まちがい防止）
+const S={w:0,h:0,hue:0,strokes:0,hold:0,holding:false,brush:28};
+const layer=document.createElement('canvas'), lg=layer.getContext('2d');
+const strokes=new Map();
+
+/* ===== no zoom ===== */
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{ const now=Date.now(); if(now-lastTouchEnd<350&&e.cancelable&&!(e.target.closest&&e.target.closest('a,button'))) e.preventDefault(); lastTouchEnd=now; },{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+for(const ev of ['gesturestart','gesturechange','gestureend']) document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+document.addEventListener('touchmove',e=>{ if(e.touches.length>1) e.preventDefault(); },{passive:false});
+
+/* ===== canvas: the whole screen. The picture is kept when the screen size changes. ===== */
+function resize(){
+  const w=Math.max(1,window.innerWidth), h=Math.max(1,window.innerHeight);
+  S.w=w; S.h=h; S.brush=Math.round(clamp(Math.min(w,h)*.075,24,44));
+  cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr);
+  const nw=Math.max(layer.width,cv.width), nh=Math.max(layer.height,cv.height);
+  if(nw!==layer.width||nh!==layer.height){
+    const old=document.createElement('canvas'); old.width=layer.width; old.height=layer.height;
+    if(old.width&&old.height) old.getContext('2d').drawImage(layer,0,0);
+    layer.width=nw; layer.height=nh; if(old.width&&old.height) lg.drawImage(old,0,0);
+  }
+  lg.setTransform(dpr,0,0,dpr,0,0); lg.lineCap='round'; lg.lineJoin='round';
+}
+addEventListener('resize',resize); addEventListener('orientationchange',resize);
+
+/* ===== drawing (rainbow only; several fingers at once are fine) ===== */
+const col=()=>`hsl(${S.hue%360},90%,58%)`;
+function down(x,y,id){
+  strokes.set(id,{x,y,mx:x,my:y}); S.hue+=47; S.strokes++; $('hint').hidden=true;
+  lg.fillStyle=col(); lg.beginPath(); lg.arc(x,y,S.brush/2,0,Math.PI*2); lg.fill(); }
+function move(x,y,id){
+  const st=strokes.get(id); if(!st) return; const d=Math.hypot(x-st.x,y-st.y); if(d<1) return;
+  const mx=(st.x+x)/2, my=(st.y+y)/2;
+  lg.strokeStyle=col(); lg.lineWidth=S.brush; lg.beginPath(); lg.moveTo(st.mx,st.my); lg.quadraticCurveTo(st.x,st.y,mx,my); lg.stroke();
+  S.hue+=d*.6; st.mx=mx; st.my=my; st.x=x; st.y=y; }
+function up(x,y,id){
+  const st=strokes.get(id); if(!st) return;
+  lg.strokeStyle=col(); lg.lineWidth=S.brush; lg.beginPath(); lg.moveTo(st.mx,st.my); lg.lineTo(x,y); lg.stroke(); strokes.delete(id); }
+function clearAll(){ lg.save(); lg.setTransform(1,0,0,1,0,0); lg.clearRect(0,0,layer.width,layer.height); lg.restore(); S.strokes=0; strokes.clear(); $('hint').hidden=false; }
+const pt=e=>{ const r=cv.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; };
+cv.addEventListener('pointerdown',e=>{ e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} const p=pt(e); down(p.x,p.y,e.pointerId); });
+cv.addEventListener('pointermove',e=>{ if(!strokes.has(e.pointerId)) return; e.preventDefault(); const p=pt(e); move(p.x,p.y,e.pointerId); });
+function endPtr(e){ if(!strokes.has(e.pointerId)) return; const p=pt(e); up(p.x,p.y,e.pointerId); }
+cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ===== けすボタン: ながおしで消える（ちいさい子がまちがえてさわっても消えない） ===== */
+const clr=$('clr');
+function holdStart(){ S.holding=true; S.hold=0; }
+function holdEnd(){ S.holding=false; S.hold=0; clr.style.setProperty('--p',0); }
+clr.addEventListener('pointerdown',e=>{ e.preventDefault(); try{ clr.setPointerCapture(e.pointerId); }catch(_){} holdStart(); });
+for(const ev of ['pointerup','pointercancel','lostpointercapture']) clr.addEventListener(ev,holdEnd);
+clr.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ===== loop ===== */
+function tick(dt){
+  if(S.holding){ S.hold+=dt; clr.style.setProperty('--p',Math.min(1,S.hold/HOLD)); if(S.hold>=HOLD){ clearAll(); holdEnd(); } }
+  g.setTransform(1,0,0,1,0,0); g.fillStyle='#FFFDF6'; g.fillRect(0,0,cv.width,cv.height); g.drawImage(layer,0,0); }
+let last=performance.now();
+function frame(now){ const dt=Math.min(.05,(now-last)/1000); last=now; tick(dt); requestAnimationFrame(frame); }
+window.__zengamen={ get S(){ return S; }, get layer(){ return layer; }, step(dt=1/60){ tick(dt); }, down:(x,y)=>down(x,y,1), move:(x,y)=>move(x,y,1), up:(x,y)=>up(x,y,1), clear:clearAll, holdStart, holdEnd };
+resize(); requestAnimationFrame(frame);
+</script>
+<!-- swipe guard: an edge swipe or a single "back" does not leave the game (a second back within 2.5s does) -->
+<style>html,body{overscroll-behavior:none}#swipeGuardToast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2147483647;width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;background:rgba(20,20,20,.86);color:#fff;font:700 14px/1.4 "Hiragino Sans","Yu Gothic",system-ui,sans-serif;padding:10px 16px;border-radius:14px;text-align:center;pointer-events:none;opacity:0;transition:opacity .25s}</style>
+<script>
+(()=>{
+  const EDGE=24;
+  // iPhone Safari: a touch that starts at the left/right edge would become the "go back" swipe
+  addEventListener('touchstart',e=>{
+    const t=e.touches[0]; if(!t||e.touches.length>1) return;
+    if(t.clientX>EDGE&&t.clientX<innerWidth-EDGE) return;
+    if(e.target.closest&&e.target.closest('a,button,input,select,textarea,label,[role=button]')) return;
+    e.preventDefault();
+  },{passive:false});
+  // back gesture / back button: the first one stays in the game, a second one within 2.5s leaves
+  let armed=false, lastBack=0, hideT=0;
+  const arm=()=>{ if(armed) return; armed=true; try{ history.pushState({swipeGuard:1},''); }catch(_){} };
+  addEventListener('pointerdown',arm,true); addEventListener('keydown',arm,true);
+  addEventListener('popstate',()=>{
+    if(!armed) return;
+    const now=Date.now();
+    if(now-lastBack<2500){ history.back(); return; }
+    lastBack=now; try{ history.pushState({swipeGuard:1},''); }catch(_){}
+    let el=document.getElementById('swipeGuardToast');
+    if(!el){ el=document.createElement('div'); el.id='swipeGuardToast'; el.setAttribute('role','status'); document.body.appendChild(el); }
+    el.textContent='ゲームを続けます（もう一度もどる操作をすると、ゲームをやめます）';
+    el.style.opacity=1; clearTimeout(hideT); hideT=setTimeout(()=>{ el.style.opacity=0; },2500);
+  });
+})();
+</script>
+<script>if("serviceWorker" in navigator){ addEventListener("load",()=>navigator.serviceWorker.register("../sw.js").catch(()=>{})); }</script>
+</body>
+</html>

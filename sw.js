@@ -1,7 +1,7 @@
 /* こどもゲームズ：オフラインでも遊べるようにする Service Worker
    ゲームを追加・更新したら VERSION を上げ、新しいページを PRECACHE に足す。 */
-const VERSION='kids-v8';
-const PRECACHE=['./','index.html','manifest.webmanifest','icon-180.png','icon-512.png','tacchi/','tacchi/index.html','nisai/','nisai/index.html'];
+const VERSION='kids-v9';
+const PRECACHE=['./','index.html','manifest.webmanifest','icon-180.png','icon-512.png','tacchi/','tacchi/index.html','nisai/','nisai/index.html','zengamen/','zengamen/index.html'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(VERSION).then(c=>Promise.all(PRECACHE.map(u=>c.add(new Request(u,{cache:'reload'})).catch(()=>{})))).then(()=>self.skipWaiting()));
