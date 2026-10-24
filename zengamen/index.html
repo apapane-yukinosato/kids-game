@@ -7,13 +7,14 @@
 <title>ぜんがめんおえかき</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
 <style>
-:root{--bg:#FFFDF6;--ink:#4A3A2A;--mute:#8A7A6A;--line:#F0C8A0;--p:0}
+:root{--bg:#FFFDF6;--ink:#4A3A2A;--mute:#8A7A6A;--line:#F0C8A0}
 *{box-sizing:border-box;touch-action:manipulation}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink)}
 body{font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #cv{position:fixed;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 #back{position:fixed;z-index:2;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));padding:8px 14px;border:2px solid var(--line);border-radius:999px;background:rgba(255,255,255,.88);color:var(--mute);text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
-#clr{position:fixed;z-index:2;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:56px;height:56px;padding:4px;border:0;border-radius:50%;cursor:pointer;background:conic-gradient(#FF7A9A calc(var(--p) * 360deg),var(--line) 0);touch-action:none}
+#clr{position:fixed;z-index:2;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:56px;height:56px;padding:4px;border:0;border-radius:50%;cursor:pointer;background:var(--line);touch-action:none}
+#clr:active span{transform:scale(.9)}
 #clr span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:#fff;font-size:26px;line-height:1}
 #hint{position:fixed;z-index:1;left:50%;top:50%;transform:translate(-50%,-50%);font-size:64px;pointer-events:none;animation:pulse 1.2s ease-in-out infinite}
 #hint[hidden]{display:none}
@@ -30,7 +31,7 @@ body{font-family:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Hiragino Sans"
 <body>
 <canvas id="cv" aria-label="おえかき"></canvas>
 <a id="back" href="../">← 一覧</a>
-<button id="clr" type="button" aria-label="ぜんぶけす（ながおし）"><span>🧹</span></button>
+<button id="clr" type="button" aria-label="ぜんぶけす"><span>🧹</span></button>
 <div id="hint" aria-hidden="true">👆</div>
 <script>
 'use strict';
@@ -38,8 +39,7 @@ const $=id=>document.getElementById(id);
 const cv=$('cv'), g=cv.getContext('2d');
 const dpr=Math.min(window.devicePixelRatio||1,2);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const HOLD=.9;   // 「けす」ボタンは、この秒数ながおししたときだけ消える（まちがい防止）
-const S={w:0,h:0,hue:0,strokes:0,hold:0,holding:false,brush:28};
+const S={w:0,h:0,hue:0,strokes:0,brush:28};
 const layer=document.createElement('canvas'), lg=layer.getContext('2d');
 const strokes=new Map();
 
@@ -86,21 +86,17 @@ function endPtr(e){ if(!strokes.has(e.pointerId)) return; const p=pt(e); up(p.x,
 cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 
-/* ===== けすボタン: ながおしで消える（ちいさい子がまちがえてさわっても消えない） ===== */
+/* ===== けすボタン: おしたらすぐ全部消える ===== */
 const clr=$('clr');
-function holdStart(){ S.holding=true; S.hold=0; }
-function holdEnd(){ S.holding=false; S.hold=0; clr.style.setProperty('--p',0); }
-clr.addEventListener('pointerdown',e=>{ e.preventDefault(); try{ clr.setPointerCapture(e.pointerId); }catch(_){} holdStart(); });
-for(const ev of ['pointerup','pointercancel','lostpointercapture']) clr.addEventListener(ev,holdEnd);
+clr.addEventListener('pointerdown',e=>{ e.preventDefault(); clearAll(); });
 clr.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ===== loop ===== */
-function tick(dt){
-  if(S.holding){ S.hold+=dt; clr.style.setProperty('--p',Math.min(1,S.hold/HOLD)); if(S.hold>=HOLD){ clearAll(); holdEnd(); } }
+function tick(){
   g.setTransform(1,0,0,1,0,0); g.fillStyle='#FFFDF6'; g.fillRect(0,0,cv.width,cv.height); g.drawImage(layer,0,0); }
 let last=performance.now();
 function frame(now){ const dt=Math.min(.05,(now-last)/1000); last=now; tick(dt); requestAnimationFrame(frame); }
-window.__zengamen={ get S(){ return S; }, get layer(){ return layer; }, step(dt=1/60){ tick(dt); }, down:(x,y)=>down(x,y,1), move:(x,y)=>move(x,y,1), up:(x,y)=>up(x,y,1), clear:clearAll, holdStart, holdEnd };
+window.__zengamen={ get S(){ return S; }, get layer(){ return layer; }, step(dt=1/60){ tick(dt); }, down:(x,y)=>down(x,y,1), move:(x,y)=>move(x,y,1), up:(x,y)=>up(x,y,1), clear:clearAll };
 resize(); requestAnimationFrame(frame);
 </script>
 <!-- swipe guard: an edge swipe or a single "back" does not leave the game (a second back within 2.5s does) -->
